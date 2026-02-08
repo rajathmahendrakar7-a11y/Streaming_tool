@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Guest - Camera Share</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .status {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .status.waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            font-weight: bold;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            font-weight: bold;
+        }
+        
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        video {
+            width: 100%;
+            height: 500px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196f3;
+            font-size: 14px;
+            color: #1565c0;
+            margin-bottom: 20px;
+        }
+        
+        .permission-prompt {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 2px solid #ffc107;
+        }
+        
+        .permission-prompt p {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .permission-prompt button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .permission-prompt button:hover {
+            background: #5568d3;
+        }
+        
+        .permission-prompt button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .controls button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .controls button:hover {
+            background: #45a049;
+        }
+        
+        .controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .camera-indicator {
+            text-align: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Share Your Camera</h1>
+        <div class="status waiting" id="connectionStatus">⏳ Initializing...</div>
+        
+        <!-- Permission Prompt -->
+        <div class="permission-prompt" id="permissionPrompt" style="display: none;">
+            <p>🔐 Camera access required</p>
+            <p style="font-size: 14px; margin-bottom: 15px;">Click below to grant camera permission. Your host will see your live video feed.</p>
+            <button id="grantCameraBtn">📷 Grant Camera Access</button>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">Your browser will ask for permission to access your camera.</p>
+        </div>
+        
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+        
+        <!-- Loading -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Requesting camera access...</p>
+        </div>
+        
+        <!-- Video Container -->
+        <div class="video-container" id="videoContainer" style="display: none;">
+            <video id="myVideo" autoplay playsinline muted></video>
+        </div>
+        
+        <!-- Camera Indicator -->
+        <div class="camera-indicator" id="cameraIndicator" style="display: none;">
+            Current Camera: <span id="cameraMode">Front</span>
+        </div>
+        
+        <!-- Controls -->
+        <div class="controls" id="controls" style="display: none;">
+            <button id="disconnectBtn">🔌 Disconnect</button>
+        </div>
+        
+        <div class="info-box">
+            <strong>How it works:</strong><br>
+            1. Grant camera permission when prompted<br>
+            2. Your video stream will be sent to the host<br>
+            3. The host can request you to switch cameras<br>
+            4. You'll approve camera access each time before switching
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Configuration
+        const SERVER_URL = 'http://localhost:3000';
+        const ICE_SERVERS = [
+            { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+        ];
+        
+        // State
+        let sessionId = null;
+        let socket = null;
+        let peerConnection = null;
+        let localStream = null;
+        let currentCamera = 'user'; // 'user' = front, 'environment' = back
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            getSessionIdFromURL();
+            initializeSocket();
+            setupEventListeners();
+        });
+        
+        // Get session ID from URL
+        function getSessionIdFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            sessionId = params.get('sessionId');
+            
+            if (!sessionId) {
+                showError('Invalid session link. Please get a valid link from the host.');
+                document.getElementById('permissionPrompt').style.display = 'none';
+                return false;
+            }
+            return true;
+        }
+        
+        // Socket.IO Connection
+        function initializeSocket() {
+            if (!sessionId) return;
+            
+            socket = io(SERVER_URL, {
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: Infinity
+            });
+            
+            socket.on('connect', () => {
+                console.log('Connected to signaling server');
+                updateStatus('Connected. Ready to grant camera access.', 'waiting');
+                document.getElementById('permissionPrompt').style.display = 'block';
+            });
+            
+            socket.on('hostAnswer', async (data) => {
+                console.log('Received answer from host');
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                } catch (error) {
+                    console.error('Error setting remote description:', error);
+                }
+            });
+            
+            socket.on('hostIceCandidate', (data) => {
+                if (peerConnection && data.candidate) {
+                    peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+                        .catch(err => console.error('Error adding ICE candidate:', err));
+                }
+            });
+            
+            socket.on('requestCameraSwitch', async (data) => {
+                console.log('Host requested camera switch:', data.camera);
+                await handleCameraSwitchRequest(data.camera);
+            });
+            
+            socket.on('hostDisconnected', () => {
+                console.log('Host disconnected');
+                updateStatus('Host disconnected. Closing connection...', 'error');
+                closeConnection();
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                updateStatus('Disconnected from server', 'error');
+            });
+            
+            // Join as guest
+            socket.emit('guestJoin', { sessionId: sessionId });
+        }
+        
+        // Grant camera access and start streaming
+        async function grantCameraAccess() {
+            try {
+                document.getElementById('permissionPrompt').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+                updateStatus('Requesting camera access...', 'waiting');
+                
+                // Request camera with current facing mode
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: currentCamera },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: true
+                });
+                
+                document.getElementById('myVideo').srcObject = localStream;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('videoContainer').style.display = 'block';
+                document.getElementById('cameraIndicator').style.display = 'block';
+                document.getElementById('controls').style.display = 'flex';
+                
+                updateStatus('Camera access granted. Connecting to host...', 'waiting');
+                updateCameraIndicator();
+                
+                // Create and send offer to host
+                await createAndSendOffer();
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('permissionPrompt').style.display = 'block';
+                
+                if (error.name === 'NotAllowedError') {
+                    showError('Camera access denied. Please grant permission to continue.');
+                } else if (error.name === 'NotFoundError') {
+                    showError('No camera found on this device.');
+                } else {
+                    showError('Error accessing camera: ' + error.message);
+                }
+            }
+        }
+        
+        // Create peer connection and send offer
+        async function createAndSendOffer() {
+            try {
+                peerConnection = new RTCPeerConnection({
+                    iceServers: ICE_SERVERS
+                });
+                
+                // Add local stream tracks
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                // Handle ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('guestIceCandidate', {
+                            sessionId: sessionId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+                
+                peerConnection.onconnectionstatechange = () => {
+                    console.log('Connection state:', peerConnection.connectionState);
+                    if (peerConnection.connectionState === 'connected') {
+                        updateStatus('Connected to host! Stream is live.', 'connected');
+                    }
+                };
+                
+                // Create and send offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('guestOffer', {
+                    sessionId: sessionId,
+                    offer: peerConnection.localDescription
+                });
+                
+                console.log('Offer sent to host');
+                
+            } catch (error) {
+                console.error('Error creating offer:', error);
+                showError('Error establishing connection: ' + error.message);
+            }
+        }
+        
+        // Handle camera switch request
+        async function handleCameraSwitchRequest(requestedCamera) {
+            try {
+                currentCamera = requestedCamera;
+                console.log('Switching to camera:', currentCamera);
+                
+                // Stop current stream
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Get new stream with requested camera
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: currentCamera },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: true
+                });
+                
+                // Update video element
+                document.getElementById('myVideo').srcObject = localStream;
+                updateCameraIndicator();
+                
+                // Update peer connection with new tracks
+                const videoTrack = localStream.getVideoTracks()[0];
+                const audioTrack = localStream.getAudioTracks()[0];
+                
+                const videoSender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+                const audioSender = peerConnection.getSenders().find(s => s.track?.kind === 'audio');
+                
+                if (videoSender) await videoSender.replaceTrack(videoTrack);
+                if (audioSender) await audioSender.replaceTrack(audioTrack);
+                
+                console.log('Camera switched successfully');
+                
+            } catch (error) {
+                console.error('Error switching camera:', error);
+                showError('Error switching camera: ' + error.message);
+            }
+        }
+        
+        // Update camera indicator
+        function updateCameraIndicator() {
+            const cameraName = currentCamera === 'user' ? 'Front' : 'Back';
+            document.getElementById('cameraMode').textContent = cameraName;
+        }
+        
+        // Update status
+        function updateStatus(message, type) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+        
+        // Show error
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            updateStatus('Error', 'error');
+        }
+        
+        // Close connection
+        function closeConnection() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('grantCameraBtn').addEventListener('click', grantCameraAccess);
+            
+            document.getElementById('disconnectBtn').addEventListener('click', () => {
+                if (socket) {
+                    socket.emit('guestDisconnect', { sessionId: sessionId });
+                }
+                closeConnection();
+                window.location.reload();
+            });
+        }
+    </script>
+</body>
+</html>
