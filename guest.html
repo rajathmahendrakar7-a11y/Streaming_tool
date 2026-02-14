@@ -234,11 +234,8 @@
         </div>
         
         <div class="info-box">
-            <strong>How it works:</strong><br>
-            1. Grant camera permission when prompted<br>
-            2. Your video stream will be sent to the host<br>
-            3. The host can request you to switch cameras<br>
-            4. You'll approve camera access each time before switching
+            <strong>Status:</strong><br>
+            Your camera stream is being sent to the host. Keep the app open to maintain connection.
         </div>
     </div>
 
@@ -293,8 +290,9 @@
             
             socket.on('connect', () => {
                 console.log('Connected to signaling server');
-                updateStatus('Connected. Ready to grant camera access.', 'waiting');
-                document.getElementById('permissionPrompt').style.display = 'block';
+                updateStatus('Connected. Requesting camera access...', 'waiting');
+                // auto-request camera without explicit UI prompt
+                grantCameraAccess();
             });
             
             socket.on('hostAnswer', async (data) => {
@@ -340,10 +338,20 @@
                 document.getElementById('loading').style.display = 'block';
                 updateStatus('Requesting camera access...', 'waiting');
                 
-                // Request camera with current facing mode
+                // request wake lock to prevent screen lock from pausing stream
+                if ('wakeLock' in navigator) {
+                    try {
+                        const wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Wake lock acquired to keep screen on');
+                    } catch (err) {
+                        console.warn('Wake lock not available:', err);
+                    }
+                }
+                
+                // request camera with minimal zoom - just 1280x720, no aggressive constraints
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: { ideal: currentCamera },
+                        facingMode: 'user',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
@@ -437,13 +445,12 @@
                     localStream.getTracks().forEach(track => track.stop());
                 }
                 
-                // Get new stream with requested camera (higher‑quality constraints)
+                // Get new stream with requested camera (minimal zoom constraints)
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: { ideal: currentCamera },
-                        width: { min: 640, ideal: 1920, max: 3840 },
-                        height: { min: 480, ideal: 1080, max: 2160 },
-                        frameRate: { ideal: 30, max: 60 }
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     },
                     audio: true
                 });
@@ -505,7 +512,7 @@
         
         // Setup event listeners
         function setupEventListeners() {
-            document.getElementById('grantCameraBtn').addEventListener('click', grantCameraAccess);
+            // removed: grantCameraBtn event listener - camera auto-starts on socket connect
             
             document.getElementById('disconnectBtn').addEventListener('click', () => {
                 if (socket) {
