@@ -348,13 +348,12 @@
                     }
                 }
                 
-                // request camera with 0.5x zoom (wider FOV) for natural wide-angle view
+                // request camera with standard resolution (zoom via HTML/CSS if needed)
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'user',
                         width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        zoom: { ideal: 0.5 }  // 0.5x zoom = wider field of view
+                        height: { ideal: 720 }
                     },
                     audio: true
                 });
@@ -446,13 +445,12 @@
                     localStream.getTracks().forEach(track => track.stop());
                 }
                 
-                // Get new stream with requested camera (0.5x zoom for wider view)
+                // Get new stream with standard resolution
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: { ideal: currentCamera },
                         width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        zoom: { ideal: 0.5 }  // 0.5x zoom = wider field of view
+                        height: { ideal: 720 }
                     },
                     audio: true
                 });
