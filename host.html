@@ -336,6 +336,16 @@
                 document.getElementById('switchFrontBtn').disabled = false;
                 document.getElementById('switchBackBtn').disabled = false;
                 isConnected = true;
+                
+                // Request wake lock to keep host screen on during streaming
+                if ('wakeLock' in navigator) {
+                    try {
+                        const wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Wake lock acquired on host - screen will stay on');
+                    } catch (err) {
+                        console.warn('Wake lock not available on host:', err);
+                    }
+                }
             });
             
             socket.on('guestOffer', async (data) => {
