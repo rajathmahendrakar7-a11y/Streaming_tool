@@ -321,9 +321,11 @@
             
             socket.on('hostSessionCreated', (data) => {
                 sessionId = data.sessionId;
-                const joinLink = `${window.location.origin}/guest.html?sessionId=${sessionId}`;
+                // compute link relative to current path in case files are served from a subdirectory
+                const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                const joinLink = `${window.location.origin}${basePath}guest.html?sessionId=${sessionId}`;
                 document.getElementById('sessionIdBox').textContent = joinLink;
-                console.log('Session created:', sessionId);
+                console.log('Session created:', sessionId, 'join link:', joinLink);
             });
             
             socket.on('guestJoined', async (data) => {
